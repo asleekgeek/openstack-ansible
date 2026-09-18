@@ -40,6 +40,10 @@ collections:
   source: https://github.com/ansible-collections/ansible.netcommon
   type: git
   version: v8.6.2
+- name: ansible.mariadb
+  source: https://github.com/ansible-collections/ansible.mariadb
+  type: git
+  version: 6.0.2
 - name: ansible.utils
   source: https://github.com/ansible-collections/ansible.utils
   type: git
