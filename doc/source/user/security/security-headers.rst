@@ -130,9 +130,40 @@ Security Policy to allow access to your authorisation server by overriding the
       upgrade-insecure-requests;
       style-src 'self' 'unsafe-inline';
       script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      connect-src 'self' {{ external_lb_vip_address }}:{{ glance_service_port }}; # allow the browser to PUT image files directly to the Glance API
       child-src 'self' {{ external_lb_vip_address }}:{{ nova_spice_html5proxy_base_port }} {{ external_lb_vip_address }}:{{ nova_novncproxy_port }} {{ external_lb_vip_address }}:{{ nova_serialconsoleproxy_port }};
       frame-src 'self' {{ external_lb_vip_address }}:{{ nova_spice_html5proxy_base_port }} {{ external_lb_vip_address }}:{{ nova_novncproxy_port }} {{ external_lb_vip_address }}:{{ nova_serialconsoleproxy_port }};
       "
+
+If you have main services routed through domain-based endpoints
+(for example ``compute.{{ external_lb_vip_address }}`` for the Nova
+API, ``identity.{{ external_lb_vip_address }}`` for Keystone, and
+``novnc.{{ external_lb_vip_address }}`` for the VNC console proxy)
+sharing the same HAProxy frontend as the Horizon dashboard, update
+``frame-ancestors``, ``form-action``, ``child-src``, and ``frame-src``
+to reference the relevant subdomains instead of ``host:port``.
+
+Because a single ``Content-Security-Policy`` header is applied to
+every response behind that shared frontend, ``frame-ancestors`` must
+also include ``{{ external_lb_vip_address }}``. Otherwise the
+console-proxy subdomain's own response will only permit itself to be
+framed, blocking Horizon from embedding it even though ``frame-src``
+and ``child-src`` are correctly configured:
+
+.. code-block:: yaml
+
+   haproxy_horizon_csp: >
+     http-response set-header Content-Security-Policy "
+     default-src 'self';
+     frame-ancestors 'self' {{ external_lb_vip_address }};
+     form-action 'self' identity.{{ external_lb_vip_address }} {{ external_lb_vip_address }} compute.{{ external_lb_vip_address }} <YOUR-AUTHORISATION-SERVER-ORIGIN>;
+     upgrade-insecure-requests;
+     style-src 'self' 'unsafe-inline';
+     script-src 'self' 'unsafe-inline' 'unsafe-eval';
+     connect-src 'self' {{ external_lb_vip_address }}:{{ glance_service_port }};
+     child-src 'self' novnc.{{ external_lb_vip_address }};
+     frame-src 'self' novnc.{{ external_lb_vip_address }};
+     "
 
 It is also possible to set specific security headers for Skyline.
 
